@@ -51,7 +51,7 @@ public class ModuleIOTalonFX implements ModuleIO {
   // Hardware objects
   private final TalonFX driveTalon;
   private final TalonFX turnTalon;
-  private final Canandmag m_canandmag;
+  private final Canandmag canandMag;
 
   // Voltage control requests
   private final VoltageOut voltageRequest = new VoltageOut(0);
@@ -97,7 +97,7 @@ public class ModuleIOTalonFX implements ModuleIO {
     this.constants = constants;
     driveTalon = new TalonFX(constants.DriveMotorId, TunerConstants.kCANBus);
     turnTalon = new TalonFX(constants.SteerMotorId, TunerConstants.kCANBus);
-    m_canandmag = new Canandmag(constants.EncoderId);
+    canandMag = new Canandmag(constants.EncoderId);
 
     // Configure drive motor
     var driveConfig = constants.DriveMotorInitialConfigs;
@@ -122,6 +122,7 @@ public class ModuleIOTalonFX implements ModuleIO {
     turnConfig.Feedback.FeedbackRemoteSensorID = constants.EncoderId;
     turnConfig.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.RotorSensor;
     turnConfig.Feedback.SensorToMechanismRatio = constants.SteerMotorGearRatio;
+    // turnConfig.Feedback.FeedbackRotorOffset = constants.EncoderOffset;
     turnConfig.MotionMagic.MotionMagicCruiseVelocity = 100.0 / constants.SteerMotorGearRatio;
     turnConfig.MotionMagic.MotionMagicAcceleration =
         turnConfig.MotionMagic.MotionMagicCruiseVelocity / 0.100;
@@ -132,7 +133,7 @@ public class ModuleIOTalonFX implements ModuleIO {
         constants.SteerMotorInverted
             ? InvertedValue.Clockwise_Positive
             : InvertedValue.CounterClockwise_Positive;
-    // tryUntilOk(5, () -> turnTalon.getConfigurator().apply(turnConfig, 0.25));
+    tryUntilOk(5, () -> turnTalon.getConfigurator().apply(turnConfig, 0.25));
 
     // Configure CANCoder
     // CANcoderConfiguration cancoderConfig = constants.EncoderInitialConfigs;
@@ -144,13 +145,13 @@ public class ModuleIOTalonFX implements ModuleIO {
     // cancoder.getConfigurator().apply(cancoderConfig);
 
     CanandmagSettings canandSettings = new CanandmagSettings();
-    canandSettings.setZeroOffset(constants.EncoderOffset);
-    if (constants.EncoderInverted) {
-      canandSettings.setInvertDirection(true);
-    }
-    m_canandmag.setSettings(canandSettings);
+    canandSettings.setInvertDirection(constants.EncoderInverted);
+    canandMag.setSettings(canandSettings);
+    // m_canandmag.setAbsPosition(0); // constants.EncoderOffset);
 
-    tryUntilOk(5, () -> turnTalon.setPosition(m_canandmag.getAbsPosition(), 0.25));
+    double abspos = canandMag.getAbsPosition();
+    System.out.println("AAWAAGAA: " + abspos);
+    tryUntilOk(5, () -> turnTalon.setPosition(abspos + constants.EncoderOffset, 0.25));
 
     // Create timestamp queue
     timestampQueue = PhoenixOdometryThread.getInstance().makeTimestampQueue();
