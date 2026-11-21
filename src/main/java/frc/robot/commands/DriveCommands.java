@@ -8,6 +8,7 @@
 package frc.robot.commands;
 
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -94,6 +95,36 @@ public class DriveCommands {
                       : drive.getRotation()));
         },
         drive);
+  }
+
+  public static Command driveToPose(Drive drive, Pose2d pose) {
+    PIDController xController = new PIDController(2, 0, 0);
+    PIDController yController = new PIDController(2, 0, 0);
+    PIDController rController = new PIDController(1, 0.1, 0);
+    xController.setSetpoint(pose.getX());
+    yController.setSetpoint(pose.getY());
+    rController.setSetpoint(pose.getRotation().getRotations());
+    rController.enableContinuousInput(0.0, 1.0);
+
+    return Commands.waitUntil(
+            () -> xController.atSetpoint() && yController.atSetpoint() && rController.atSetpoint())
+        .deadlineFor(
+            Commands.run(
+                () -> {
+                  double xOut = xController.calculate(drive.getPose().getX());
+                  double yOut = yController.calculate(drive.getPose().getY());
+                  double zOut = rController.calculate(drive.getPose().getRotation().getRotations());
+                  drive.runVelocity(
+                      ChassisSpeeds.fromFieldRelativeSpeeds(
+                          new ChassisSpeeds(xOut, yOut, zOut), drive.getRotation()));
+                },
+                drive))
+        .andThen(
+            () -> {
+              xController.close();
+              yController.close();
+              rController.close();
+            });
   }
 
   public static Command joystickDriveRobotRelative(

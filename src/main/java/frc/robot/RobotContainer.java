@@ -7,9 +7,12 @@
 
 package frc.robot;
 
+import static edu.wpi.first.units.Units.Inches;
+
 import com.pathplanner.lib.auto.AutoBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -153,9 +156,21 @@ public class RobotContainer {
                 () ->
                     drive
                         .getPose()
-                        .minus(Constants.aprilTagLayout.getTagPose(1).get().toPose2d())
+                        .minus(Constants.aprilTagLayout.getTagPose(10).get().toPose2d())
                         .getTranslation()
                         .getAngle()));
+
+    controller
+        .povUp()
+        .whileTrue(
+            DriveCommands.driveToPose(
+                drive,
+                Constants.aprilTagLayout
+                    .getTagPose(10)
+                    .get()
+                    .toPose2d()
+                    .plus(
+                        new Transform2d(Inches.of(20), Inches.of(0), Rotation2d.fromDegrees(45)))));
 
     // Switch to X pattern when X button is pressed
     controller.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
