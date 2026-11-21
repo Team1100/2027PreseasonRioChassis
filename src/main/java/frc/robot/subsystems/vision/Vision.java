@@ -6,19 +6,26 @@ import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.subsystems.vision.VisionIO.VisionIOInputs;
+import frc.robot.subsystems.vision.VisionSystem.SystemResult;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.littletonrobotics.junction.Logger;
 
 public class Vision extends SubsystemBase {
   private final VisionConsumer consumer;
-  private final VisionSystem[] systems;
+  private final Map<String, VisionSystem> systems;
 
-  public Vision(VisionConsumer consumer, VisionIO... io) {
+  public Vision(VisionConsumer consumer, VisionIO... ios) {
     this.consumer = consumer;
-    this.systems = new VisionSystem[io.length];
-    for (int i = 0; i < io.length; i++) {
-      this.systems[i] = new VisionSystem(io[i]);
+    this.systems = new HashMap<>();
+    for (var io : ios) {
+      var inputs = new VisionIOInputs();
+      io.updateInputs(inputs);
+      systems.put(inputs.name, new VisionSystem(io));
     }
   }
 
@@ -27,7 +34,8 @@ public class Vision extends SubsystemBase {
     List<Pose3d> poses = new LinkedList<>();
     List<Pose3d> posesAccepted = new LinkedList<>();
     List<Pose3d> posesFiltered = new LinkedList<>();
-    for (var system : this.systems) {
+    for (var entry : this.systems.entrySet()) {
+      var system = entry.getValue();
       system.process();
       system
           .getLatestResults()
@@ -45,6 +53,29 @@ public class Vision extends SubsystemBase {
     Logger.recordOutput("Vision/Summary/RobotPoses", poses.toArray(Pose3d[]::new));
     Logger.recordOutput("Vision/Summary/RobotPosesAccepted", posesAccepted.toArray(Pose3d[]::new));
     Logger.recordOutput("Vision/Summary/RobotPosesFiltered", posesFiltered.toArray(Pose3d[]::new));
+  }
+
+  /* Returns the latest *valid* result of the specified camera, or empty. */
+  public Optional<SystemResult> getLatestResultOf(String cameraName) {
+    if (this.systems.containsKey(cameraName)) {
+      SystemResult result = this.systems.get(cameraName).getLatestResult();
+      if (result != null) return Optional.of(result);
+    }
+    return Optional.empty();
+  }
+
+  public boolean cameraSeesAnyOf(String cameraName, int... ids) {
+    if (this.systems.containsKey(cameraName)) {
+      return this.systems.get(cameraName).seesAnyOf(ids);
+    }
+    return false;
+  }
+
+  public boolean cameraSeesAllOf(String cameraName, int... ids) {
+    if (this.systems.containsKey(cameraName)) {
+      return this.systems.get(cameraName).seesAllOf(ids);
+    }
+    return false;
   }
 
   @FunctionalInterface

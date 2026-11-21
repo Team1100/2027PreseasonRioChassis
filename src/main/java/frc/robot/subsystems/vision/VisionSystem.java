@@ -18,6 +18,7 @@ public class VisionSystem {
   private final VisionIOInputsAutoLogged inputs;
   private final Alert disconnectedAlert;
   private final List<SystemResult> results;
+  private SystemResult latestResult;
 
   private final double AMBIGUITY_THRESHOLD = 0.5;
   private final double MAX_Z = 1.0;
@@ -30,6 +31,7 @@ public class VisionSystem {
     this.disconnectedAlert =
         new Alert("Vision Camera '<unnamed>' is disconnected.", AlertType.kWarning);
     this.results = new LinkedList<>();
+    this.latestResult = null;
   }
 
   public void process() {
@@ -50,7 +52,9 @@ public class VisionSystem {
               || i.pose().getX() > Constants.aprilTagLayout.getFieldLength()
               || i.pose().getY() < 0
               || i.pose().getY() > Constants.aprilTagLayout.getFieldWidth());
-      this.results.add(new SystemResult(i.pose(), i.timestamp(), stddevs, filter));
+      SystemResult result = new SystemResult(i.pose(), i.timestamp(), stddevs, filter);
+      this.results.add(result);
+      if (!filter) this.latestResult = result;
     }
   }
 
@@ -66,6 +70,30 @@ public class VisionSystem {
     List<SystemResult> retResults = new LinkedList<>(this.results);
     this.results.clear();
     return retResults;
+  }
+
+  public SystemResult getLatestResult() {
+    return this.latestResult;
+  }
+
+  public boolean seesAnyOf(int... ids) {
+    for (int id : ids) {
+      for (int viewedId : this.inputs.tagIds) {
+        if (id == viewedId) return true;
+      }
+    }
+    return false;
+  }
+
+  public boolean seesAllOf(int... ids) {
+    for (int id : ids) {
+      boolean found = false;
+      for (int viewedId : this.inputs.tagIds) {
+        if (id == viewedId) found = true;
+      }
+      if (!found) return false;
+    }
+    return true;
   }
 
   public static record SystemResult(

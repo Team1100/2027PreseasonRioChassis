@@ -3,8 +3,10 @@ package frc.robot.subsystems.vision;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import frc.robot.Constants;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import org.photonvision.PhotonCamera;
 import org.photonvision.targeting.MultiTargetPNPResult;
 import org.photonvision.targeting.PhotonTrackedTarget;
@@ -32,6 +34,7 @@ public class VisionIOPhotonVision implements VisionIO {
     inputs.angularStddev = this.angularStddev;
 
     List<PoseObservation> observations = new LinkedList<>();
+    Set<Short> tagIds = new HashSet<>();
     for (var result : camera.getAllUnreadResults()) {
       if (result.multitagResult.isPresent()) {
         MultiTargetPNPResult mtResult = result.multitagResult.get();
@@ -42,6 +45,7 @@ public class VisionIOPhotonVision implements VisionIO {
         double avgTagDistance =
             result.targets.stream().mapToDouble(this::distanceFromTarget).average().orElse(0.0);
 
+        mtResult.fiducialIDsUsed.forEach(id -> tagIds.add(id));
         observations.add(
             new PoseObservation(
                 result.getTimestampSeconds(),
@@ -64,6 +68,7 @@ public class VisionIOPhotonVision implements VisionIO {
                   Pose3d robotPose =
                       new Pose3d(fieldToRobot.getTranslation(), fieldToRobot.getRotation());
 
+                  tagIds.add((short) target.fiducialId);
                   observations.add(
                       new PoseObservation(
                           result.getTimestampSeconds(),
@@ -78,6 +83,12 @@ public class VisionIOPhotonVision implements VisionIO {
 
     inputs.poseObservations = new PoseObservation[observations.size()];
     for (int i = 0; i < observations.size(); i++) inputs.poseObservations[i] = observations.get(i);
+
+    inputs.tagIds = new int[tagIds.size()];
+    int i = 0;
+    for (Short tagId : tagIds) {
+      inputs.tagIds[i++] = tagId;
+    }
   }
 
   private double distanceFromTarget(PhotonTrackedTarget value) {

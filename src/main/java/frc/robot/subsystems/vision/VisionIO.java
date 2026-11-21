@@ -7,6 +7,7 @@ public interface VisionIO {
   @AutoLog
   public static class VisionIOInputs {
     boolean connected;
+    public int[] tagIds = new int[0];
     public PoseObservation[] poseObservations = new PoseObservation[0];
     public String name = "";
     public double linearStddev;
